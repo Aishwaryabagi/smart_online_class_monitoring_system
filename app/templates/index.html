@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Smart Classroom Monitor</title>
+</head>
+
+<body>
+
+<h2>Smart Classroom Monitoring</h2>
+
+<button onclick="startClass()">Start Classroom</button>
+<button onclick="stopClass()">End Classroom</button>
+
+<br><br>
+
+<video id="video" width="640" height="480" autoplay></video>
+
+<p id="result">Behavior: waiting...</p>
+
+<script>
+
+let video = document.getElementById("video")
+let running = false
+let interval
+
+async function startClass(){
+
+    running = true
+
+    const stream = await navigator.mediaDevices.getUserMedia({video:true})
+    video.srcObject = stream
+
+    interval = setInterval(sendFrame, 1000)
+}
+
+function stopClass(){
+     running = false
+
+    clearInterval(interval)
+
+    if(stream){
+        stream.getTracks().forEach(track => track.stop())
+    }
+
+    video.srcObject = null
+    
+}
+
+async function sendFrame(){
+
+    if(!running) return
+
+    let canvas = document.createElement("canvas")
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+
+    let ctx = canvas.getContext("2d")
+    ctx.drawImage(video,0,0)
+
+    let blob = await new Promise(resolve => canvas.toBlob(resolve,"image/jpeg"))
+
+    let formData = new FormData()
+    formData.append("file", blob)
+
+    let response = await fetch("/analyze",{
+        method:"POST",
+        body:formData
+    })
+
+    let data = await response.json()
+
+    document.getElementById("result").innerText =
+        "Behavior: " + data.behavior
+}
+
+</script>
+
+</body>
+</html>
